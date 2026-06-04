@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多Agent协作平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 40px;
+    }
+    .logo {
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 36px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; opacity: 0.7; margin-bottom: 32px; }
+    .status {
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 24px;
+      font-size: 14px;
+      min-width: 320px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .status-dot.online { background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .status-dot.offline { background: #f87171; box-shadow: 0 0 8px #f87171; }
+    .status-dot.checking { background: #fbbf24; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .btn {
+      display: inline-block;
+      padding: 14px 40px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: white;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(245, 158, 11, 0.5);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      margin-left: 12px;
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .hint {
+      margin-top: 20px;
+      font-size: 12px;
+      opacity: 0.5;
+    }
+    .error-box {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      text-align: left;
+      line-height: 1.6;
+    }
+    .retry-link {
+      color: #fbbf24;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🤖</div>
+    <h1>多Agent协作平台</h1>
+    <p class="subtitle">Multi-Agent Collaboration Platform</p>
+
+    <div class="status" id="statusBox">
+      <span class="status-dot checking" id="statusDot"></span>
+      <span id="statusText">正在检测服务状态...</span>
+    </div>
+
+    <div id="errorBox" style="display:none" class="error-box">
+      <div id="errorContent"></div>
+    </div>
+
+    <div id="actionArea">
+      <a id="enterBtn" class="btn btn-primary" href="http://localhost:5173" style="display:none">
+        进入平台
+      </a>
+      <button id="startBtn" class="btn btn-secondary" onclick="startServer()" style="display:none">
+        启动服务
+      </button>
+    </div>
+
+    <p class="hint" id="hintText">正在连接...</p>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3001/api/agents';
+    const APP_URL = 'http://localhost:5173';
+    let checkCount = 0;
+
+    async function checkServer() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const enterBtn = document.getElementById('enterBtn');
+      const startBtn = document.getElementById('startBtn');
+      const errorBox = document.getElementById('errorBox');
+      const hintText = document.getElementById('hintText');
+
+      dot.className = 'status-dot checking';
+      text.textContent = '正在检测服务状态...';
+
+      try {
+        const res = await fetch(API_URL, { method: 'GET', signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          dot.className = 'status-dot online';
+          text.textContent = '服务运行中';
+          enterBtn.style.display = 'inline-block';
+          startBtn.style.display = 'none';
+          errorBox.style.display = 'none';
+          hintText.textContent = '点击「进入平台」开始使用';
+
+          // 如果是首次检测到在线，自动跳转
+          if (checkCount === 0) {
+            window.location.href = APP_URL;
+          }
+          return true;
+        }
+      } catch (e) {
+        // 服务未启动
+      }
+
+      checkCount++;
+      dot.className = 'status-dot offline';
+      text.textContent = '服务未启动';
+      enterBtn.style.display = 'none';
+      startBtn.style.display = 'inline-block';
+
+      if (checkCount >= 3) {
+        errorBox.style.display = 'block';
+        document.getElementById('errorContent').innerHTML =
+          '后端服务未运行。请按以下步骤启动：<br>' +
+          '1. 双击文件夹中的 <b>启动.bat</b><br>' +
+          '2. 等待出现 "Server ready on port 3001"<br>' +
+          '3. 然后 <span class="retry-link" onclick="checkServer()">点击此处重试</span>';
+        hintText.textContent = '请先启动服务';
+      } else {
+        // 3秒后重试
+        hintText.textContent = `${3 - checkCount} 秒后重试...`;
+        setTimeout(checkServer, 3000);
+      }
+      return false;
+    }
+
+    function startServer() {
+      // 尝试通过协议启动bat（仅Windows有效）
+      const link = document.createElement('a');
+      link.href = '启动.bat';
+      link.click();
+
+      document.getElementById('hintText').textContent = '请允许下载并运行 启动.bat，等待服务启动后刷新此页面';
+      setTimeout(checkServer, 10000);
+    }
+
+    // 页面加载后开始检测
+    checkServer();
+  </script>
+</body>
+</html>

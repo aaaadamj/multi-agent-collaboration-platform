@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多Agent协作平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container { text-align: center; padding: 40px; max-width: 480px; }
+    .logo {
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 36px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; opacity: 0.7; margin-bottom: 32px; }
+    .status {
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .status-dot.online { background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .status-dot.offline { background: #f87171; box-shadow: 0 0 8px #f87171; }
+    .status-dot.checking { background: #fbbf24; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .btn {
+      display: inline-block;
+      padding: 14px 40px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: white;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      box-shadow: 0 4px 20px rgba(245,158,11,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(245,158,11,0.5); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      margin-top: 12px;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.25); }
+    .hint { margin-top: 20px; font-size: 12px; opacity: 0.5; line-height: 1.6; }
+    .error-box {
+      background: rgba(239,68,68,0.2);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      text-align: left;
+      line-height: 1.8;
+    }
+    .success-box {
+      background: rgba(52,211,153,0.2);
+      border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .url-display {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-top: 8px;
+      font-family: monospace;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      color: #fbbf24;
+    }
+    .retry-link { color: #fbbf24; cursor: pointer; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🤖</div>
+    <h1>多Agent协作平台</h1>
+    <p class="subtitle">Multi-Agent Collaboration Platform</p>
+
+    <div class="status" id="statusBox">
+      <span class="status-dot checking" id="statusDot"></span>
+      <span id="statusText">正在检测服务状态...</span>
+    </div>
+
+    <div id="errorBox" style="display:none" class="error-box">
+      <div id="errorContent"></div>
+    </div>
+
+    <div id="successBox" style="display:none" class="success-box">
+      <div>✅ 部署成功，可直接打开网页</div>
+      <div class="url-display" id="urlDisplay"></div>
+    </div>
+
+    <div id="actionArea">
+      <a id="enterBtn" class="btn btn-primary" href="#" style="display:none">
+        进入平台
+      </a>
+      <br>
+      <button id="startBtn" class="btn btn-secondary" onclick="startServer()" style="display:none">
+        启动服务（运行"第一步点我部署环境.bat"）
+      </button>
+    </div>
+
+    <p class="hint" id="hintText">正在连接...</p>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3001/api/agents';
+    const POSSIBLE_PORTS = [5173, 5174, 5175, 5176];
+    let foundUrl = null;
+    let checkCount = 0;
+
+    async function checkBackend() {
+      try {
+        const res = await fetch(API_URL, { method: 'GET', signal: AbortSignal.timeout(3000) });
+        return res.ok;
+      } catch { return false; }
+    }
+
+    async function findFrontend() {
+      for (const port of POSSIBLE_PORTS) {
+        try {
+          const res = await fetch(`http://localhost:${port}/`, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(2000)
+          });
+          if (res.ok) return `http://localhost:${port}`;
+        } catch {}
+      }
+      return null;
+    }
+
+    async function checkServer() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const enterBtn = document.getElementById('enterBtn');
+      const startBtn = document.getElementById('startBtn');
+      const errorBox = document.getElementById('errorBox');
+      const successBox = document.getElementById('successBox');
+      const hintText = document.getElementById('hintText');
+
+      dot.className = 'status-dot checking';
+      text.textContent = '正在检测服务状态...';
+
+      const backendOk = await checkBackend();
+
+      if (backendOk) {
+        const frontendUrl = await findFrontend();
+        foundUrl = frontendUrl || 'http://localhost:5173';
+
+        dot.className = 'status-dot online';
+        text.textContent = '服务运行中';
+
+        successBox.style.display = 'block';
+        document.getElementById('urlDisplay').textContent = foundUrl;
+
+        enterBtn.href = foundUrl;
+        enterBtn.style.display = 'inline-block';
+        startBtn.style.display = 'none';
+        errorBox.style.display = 'none';
+        hintText.textContent = '点击「进入平台」开始使用';
+
+        // 首次检测到在线，3秒后自动跳转
+        if (checkCount === 0) {
+          hintText.textContent = '3秒后自动跳转...';
+          setTimeout(() => { window.location.href = foundUrl; }, 3000);
+        }
+        return true;
+      }
+
+      checkCount++;
+      dot.className = 'status-dot offline';
+      text.textContent = '服务未启动';
+      enterBtn.style.display = 'none';
+      startBtn.style.display = 'inline-block';
+      successBox.style.display = 'none';
+
+      if (checkCount >= 2) {
+        errorBox.style.display = 'block';
+        document.getElementById('errorContent').innerHTML =
+          '❌ 后端服务未运行<br><br>' +
+          '请按以下步骤启动：<br>' +
+          '1. 双击文件夹中的 <b>第一步点我部署环境.bat</b><br>' +
+          '2. 等待出现 "Server ready on port 3001"<br>' +
+          '3. 然后 <span class="retry-link" onclick="resetAndRetry()">点击此处重试</span>';
+        hintText.textContent = '请先运行 "第一步点我部署环境.bat" 启动服务';
+      } else {
+        hintText.textContent = '3秒后重试...';
+        setTimeout(checkServer, 3000);
+      }
+      return false;
+    }
+
+    function resetAndRetry() {
+      checkCount = 0;
+      document.getElementById('errorBox').style.display = 'none';
+      checkServer();
+    }
+
+    function startServer() {
+      const link = document.createElement('a');
+      link.href = '第一步点我部署环境.bat';
+      link.download = '第一步点我部署环境.bat';
+      link.click();
+      document.getElementById('hintText').textContent = '请运行下载的bat文件，等待服务启动后刷新此页面';
+      setTimeout(resetAndRetry, 15000);
+    }
+
+    checkServer();
+  </script>
+</body>
+</html>
