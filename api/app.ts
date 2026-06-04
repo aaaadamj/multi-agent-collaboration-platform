@@ -18,6 +18,7 @@ import deliverableRoutes from './routes/deliverables.js'
 import fileRoutes from './routes/files.js'
 import skillRoutes from './routes/skills.js'
 import workflowEditorRoutes from './routes/workflowEditor.js'
+import inspirationRoutes from './routes/inspiration.js'
 
 // load env
 dotenv.config()
@@ -43,6 +44,7 @@ app.use('/api/deliverables', deliverableRoutes)
 app.use('/api/projects', fileRoutes)
 app.use('/api/skills', skillRoutes)
 app.use('/api/projects/:projectId/workflow', workflowEditorRoutes)
+app.use('/api/inspiration', inspirationRoutes)
 
 /**
  * health

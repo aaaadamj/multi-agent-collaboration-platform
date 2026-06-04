@@ -5,11 +5,13 @@ import {
   FileText,
   Settings,
   ClipboardList,
+  Lightbulb,
 } from 'lucide-react'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: '项目大厅' },
   { path: '/agents', icon: Users, label: 'Agent管理' },
+  { path: '/inspiration', icon: Lightbulb, label: '灵感收集' },
   { path: '/deliverables', icon: FileText, label: '交付物' },
   { path: '/settings', icon: Settings, label: '设置' },
 ]
