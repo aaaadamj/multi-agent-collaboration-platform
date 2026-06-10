@@ -76,6 +76,7 @@ router.get('/:id/nodes', async (req: Request, res: Response) => {
 
 router.post('/:id/nodes/:nodeId/approve', async (req: Request, res: Response) => {
   try {
+    console.log('[DEBUG-APPROVE] HIT THE REAL APPROVE ROUTE! id=', req.params.id, 'nodeId=', req.params.nodeId)
     const { approved, comment } = req.body
     const result = await workflowService.approveNode(Number(req.params.id), req.params.nodeId, approved, comment)
     res.json({ success: true, data: result })
