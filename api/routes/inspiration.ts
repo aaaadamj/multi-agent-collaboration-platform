@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import axios from 'axios'
+import { ok, created, notFound, badRequest, serverError } from '../utils/apiResponse.js'
 
 const router = Router()
 
@@ -99,7 +100,7 @@ router.post('/chat', async (req: Request, res: Response) => {
     const { message, history = [] }: { message: string; history: ChatMessage[] } = req.body
 
     if (!message?.trim()) {
-      return res.status(400).json({ success: false, error: '消息不能为空' })
+      return res.status(400).json(badRequest('消息不能为空'))
     }
 
     const config = DEFAULT_MODEL_CONFIG
@@ -130,16 +131,13 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     const reply = response.data.choices[0]?.message?.content
     if (!reply) {
-      return res.status(500).json({ success: false, error: '模型返回为空' })
+      return res.status(500).json(serverError('模型返回为空'))
     }
 
-    res.json({ success: true, data: reply })
+    res.json(ok(reply))
   } catch (error: any) {
     console.error('灵感聊天失败:', error?.response?.data || error.message)
-    res.status(500).json({
-      success: false,
-      error: error?.response?.data?.error?.message || error.message || '服务错误',
-    })
+    res.status(500).json(serverError(error?.response?.data?.error?.message || error.message || '服务错误'))
   }
 })
 

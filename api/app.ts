@@ -19,6 +19,7 @@ import fileRoutes from './routes/files.js'
 import skillRoutes from './routes/skills.js'
 import workflowEditorRoutes from './routes/workflowEditor.js'
 import inspirationRoutes from './routes/inspiration.js'
+import { errorHandler } from './utils/errorHandler.js'
 
 // load env
 dotenv.config()
@@ -62,21 +63,6 @@ app.use(
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-  res.status(500).json({
-    success: false,
-    error: 'Server internal error',
-  })
-})
-
-/**
- * 404 handler
- */
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: 'API not found',
-  })
-})
+app.use(errorHandler)
 
 export default app

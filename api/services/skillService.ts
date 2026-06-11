@@ -292,3 +292,53 @@ export function parseToolCalls(content: string): { cleanContent: string; toolCal
 
   return { cleanContent, toolCalls }
 }
+
+// 分区并发执行工具调用
+// 来自 Claude Code 的 partitionToolCalls 设计
+export interface ToolBatch {
+  isConcurrencySafe: boolean
+  calls: { toolId: string; params: Record<string, any> }[]
+}
+
+// 并发安全的工具（可同时执行）
+const CONCURRENCY_SAFE_TOOLS = new Set([
+  'file_read', 'web_search', 'data_analyze', 'task_plan',
+  'code_generate', 'doc_create'
+])
+
+export async function runToolsConcurrently(
+  toolCalls: { toolId: string; params: Record<string, any> }[],
+  projectId?: number
+): Promise<ToolExecutionResult[]> {
+  // 1. 分区：并发安全 vs 串行
+  const batches: ToolBatch[] = []
+  for (const tc of toolCalls) {
+    const isSafe = CONCURRENCY_SAFE_TOOLS.has(tc.toolId)
+    const last = batches[batches.length - 1]
+    if (last && last.isConcurrencySafe === isSafe) {
+      last.calls.push(tc)
+    } else {
+      batches.push({ isConcurrencySafe: isSafe, calls: [tc] })
+    }
+  }
+
+  // 2. 按批次执行
+  const allResults: ToolExecutionResult[] = []
+  for (const batch of batches) {
+    if (batch.isConcurrencySafe) {
+      // 并发批次
+      const results = await Promise.all(
+        batch.calls.map(tc => executeToolCall(tc.toolId, tc.params, projectId))
+      )
+      allResults.push(...results)
+    } else {
+      // 串行批次
+      for (const tc of batch.calls) {
+        const result = await executeToolCall(tc.toolId, tc.params, projectId)
+        allResults.push(result)
+      }
+    }
+  }
+
+  return allResults
+}

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import * as skillService from '../services/skillService.js'
+import { ok, created, notFound, badRequest, serverError } from '../utils/apiResponse.js'
 
 const router = Router()
 
@@ -7,9 +8,9 @@ const router = Router()
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const skills = await skillService.getSkills()
-    res.json({ success: true, data: skills })
+    res.json(ok(skills))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -17,9 +18,9 @@ router.get('/', async (_req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const skill = await skillService.createSkill(req.body)
-    res.json({ success: true, data: skill })
+    res.json(ok(skill))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -27,9 +28,9 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/agents/:agentId', async (req: Request, res: Response) => {
   try {
     const skills = await skillService.getAgentSkills(req.params.agentId)
-    res.json({ success: true, data: skills })
+    res.json(ok(skills))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -37,9 +38,9 @@ router.get('/agents/:agentId', async (req: Request, res: Response) => {
 router.post('/agents/:agentId/skills/:skillId', async (req: Request, res: Response) => {
   try {
     const result = await skillService.addAgentSkill(req.params.agentId, req.params.skillId, req.body.config)
-    res.json({ success: true, data: result })
+    res.json(ok(result))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -47,9 +48,9 @@ router.post('/agents/:agentId/skills/:skillId', async (req: Request, res: Respon
 router.delete('/agents/:agentId/skills/:skillId', async (req: Request, res: Response) => {
   try {
     await skillService.removeAgentSkill(req.params.agentId, req.params.skillId)
-    res.json({ success: true })
+    res.json(ok(null))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -58,9 +59,9 @@ router.put('/agents/:agentId/skills/:skillId/toggle', async (req: Request, res: 
   try {
     const { enabled } = req.body
     await skillService.toggleAgentSkill(req.params.agentId, req.params.skillId, !!enabled)
-    res.json({ success: true })
+    res.json(ok(null))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -69,9 +70,9 @@ router.put('/agents/:agentId/skills/:skillId/config', async (req: Request, res: 
   try {
     const { config } = req.body
     const result = await skillService.updateAgentSkill(req.params.agentId, req.params.skillId, config)
-    res.json({ success: true, data: result })
+    res.json(ok(result))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -79,9 +80,9 @@ router.put('/agents/:agentId/skills/:skillId/config', async (req: Request, res: 
 router.get('/agents/:agentId/tools-description', async (req: Request, res: Response) => {
   try {
     const desc = await skillService.getAgentToolsDescription(req.params.agentId)
-    res.json({ success: true, data: desc })
+    res.json(ok(desc))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -90,9 +91,9 @@ router.post('/execute', async (req: Request, res: Response) => {
   try {
     const { toolId, params, projectId } = req.body
     const result = await skillService.executeToolCall(toolId, params, projectId)
-    res.json({ success: true, data: result })
+    res.json(ok(result))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 

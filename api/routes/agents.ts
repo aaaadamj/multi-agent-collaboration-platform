@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
 import * as agentService from '../services/agentService.js'
+import { ok, created, notFound, badRequest, serverError } from '../utils/apiResponse.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -30,36 +31,36 @@ const router = Router()
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const agents = await agentService.getAgents()
-    res.json({ success: true, data: agents })
+    res.json(ok(agents))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.post('/upload-md', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      res.status(400).json({ success: false, error: 'No file uploaded' })
+      res.status(400).json(badRequest('未上传文件'))
       return
     }
     const content = fs.readFileSync(req.file.path, 'utf-8')
     fs.unlinkSync(req.file.path)
     res.json({ success: true, data: { content } })
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.post('/upload-avatar', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      res.status(400).json({ success: false, error: 'No file uploaded' })
+      res.status(400).json(badRequest('未上传文件'))
       return
     }
     const url = `/uploads/${req.file.filename}`
     res.json({ success: true, data: { url } })
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -67,12 +68,12 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const agent = await agentService.getAgentById(req.params.id)
     if (!agent) {
-      res.status(404).json({ success: false, error: 'Agent not found' })
+      res.status(404).json(notFound('Agent'))
       return
     }
-    res.json({ success: true, data: agent })
+    res.json(ok(agent))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -80,9 +81,9 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const { id, name, role, description, prompt_template, avatar } = req.body
     const agent = await agentService.createAgent({ id, name, role, description, prompt_template, avatar })
-    res.json({ success: true, data: agent })
+    res.json(ok(agent))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -90,18 +91,18 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { name, role, description, prompt_template, avatar, status } = req.body
     const agent = await agentService.updateAgent(req.params.id, { name, role, description, prompt_template, avatar, status })
-    res.json({ success: true, data: agent })
+    res.json(ok(agent))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     await agentService.deleteAgent(req.params.id)
-    res.json({ success: true })
+    res.json(ok(null))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -109,9 +110,9 @@ router.put('/:id/prompt', async (req: Request, res: Response) => {
   try {
     const { prompt } = req.body
     const agent = await agentService.updateAgentPrompt(req.params.id, prompt)
-    res.json({ success: true, data: agent })
+    res.json(ok(agent))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -127,7 +128,7 @@ router.post('/:id/models', async (req: Request, res: Response) => {
     })
     res.json({ success: true, data: model })
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -136,7 +137,7 @@ router.get('/:id/models', async (req: Request, res: Response) => {
     const models = await agentService.getAgentModels(req.params.id)
     res.json({ success: true, data: models })
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -145,16 +146,16 @@ router.put('/:id/models/:modelId/active', async (req: Request, res: Response) =>
     const model = await agentService.setActiveModel(req.params.id, Number(req.params.modelId))
     res.json({ success: true, data: model })
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.delete('/:id/models/:modelId', async (req: Request, res: Response) => {
   try {
     await agentService.deleteAgentModel(Number(req.params.modelId))
-    res.json({ success: true })
+    res.json(ok(null))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 

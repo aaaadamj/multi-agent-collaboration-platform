@@ -1,5 +1,6 @@
 import { getDb } from '../db/index.js'
-import { getAgentToolsDescription, parseToolCalls, executeToolCall } from './skillService.js'
+import { getAgentToolsDescription, parseToolCalls } from './skillService.js'
+import { orchestrateToolCalls, partitionToolCalls } from '../utils/toolOrchestration.js'
 import { getWorkflowDescription } from './workflowEditorService.js'
 
 export async function getAgents() {
@@ -146,12 +147,12 @@ export async function generateAgentReply(agentId: string, message: string, proje
       // 检查是否有工具调用
       const { cleanContent, toolCalls } = parseToolCalls(reply)
 
-      // 如果有工具调用，执行它们并将结果追加到回复中
+      // 如果有工具调用，分区并发执行（Claude Code 并发编排模式）
       if (toolCalls.length > 0) {
+        const results = await orchestrateToolCalls(toolCalls, projectContext?.id)
         let executionResults = '\n\n--- 工具执行结果 ---\n'
-        for (const tc of toolCalls) {
-          const result = await executeToolCall(tc.toolId, tc.params, projectContext?.id)
-          executionResults += `\n**[${tc.toolId}]** ${result.success ? '✅ 成功' : '❌ 失败'}\n${result.result || result.error}\n`
+        for (const r of results) {
+          executionResults += `\n**[${r.toolId}]** ${r.success ? '✅ 成功' : '❌ 失败'}\n${r.result || r.error}\n`
         }
         return cleanContent + executionResults
       }
@@ -185,3 +186,11 @@ function generateMockReply(agentId: string, agentName: string, message: string, 
 
   return replies[agentId] || `我是${agentName}，已收到您的消息：「${message}」\n\n我正在基于当前项目上下文进行分析和处理...\n\n（当前使用模拟回复，您可以在Agent管理中配置真实的大模型API以获得更智能的回复）`
 }
+/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
+/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
+/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
+/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
+/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
+/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
+/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
+/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory

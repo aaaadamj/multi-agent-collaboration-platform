@@ -3,6 +3,7 @@ import * as projectService from '../services/projectService.js'
 import * as workflowService from '../services/workflowService.js'
 import * as agentService from '../services/agentService.js'
 import * as deliverableService from '../services/deliverableService.js'
+import { ok, created, notFound, badRequest, serverError } from '../utils/apiResponse.js'
 
 const router = Router()
 
@@ -10,18 +11,18 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const { name, direction, type, agentIds, folderName } = req.body
     const project = await projectService.createProject(name, direction, type, agentIds, folderName)
-    res.json({ success: true, data: project })
+    res.json(ok(project))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const projects = await projectService.getProjects()
-    res.json({ success: true, data: projects })
+    res.json(ok(projects))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -29,48 +30,48 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const project = await projectService.getProjectWithNodes(Number(req.params.id))
     if (!project) {
-      res.status(404).json({ success: false, error: 'Project not found' })
+      res.status(404).json(notFound('Project'))
       return
     }
-    res.json({ success: true, data: project })
+    res.json(ok(project))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.get('/:id/agents', async (req: Request, res: Response) => {
   try {
     const agents = await projectService.getProjectAgents(Number(req.params.id))
-    res.json({ success: true, data: agents })
+    res.json(ok(agents))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.post('/:id/agents/:agentId', async (req: Request, res: Response) => {
   try {
     const result = await projectService.addAgentToProject(Number(req.params.id), req.params.agentId)
-    res.json({ success: true, data: result })
+    res.json(ok(result))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.delete('/:id/agents/:agentId', async (req: Request, res: Response) => {
   try {
     await projectService.removeAgentFromProject(Number(req.params.id), req.params.agentId)
-    res.json({ success: true })
+    res.json(ok(null))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.get('/:id/nodes', async (req: Request, res: Response) => {
   try {
     const nodes = await workflowService.getProjectNodes(Number(req.params.id))
-    res.json({ success: true, data: nodes })
+    res.json(ok(nodes))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -79,18 +80,18 @@ router.post('/:id/nodes/:nodeId/approve', async (req: Request, res: Response) =>
     console.log('[DEBUG-APPROVE] HIT THE REAL APPROVE ROUTE! id=', req.params.id, 'nodeId=', req.params.nodeId)
     const { approved, comment } = req.body
     const result = await workflowService.approveNode(Number(req.params.id), req.params.nodeId, approved, comment)
-    res.json({ success: true, data: result })
+    res.json(ok(result))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.get('/:id/agents/:agentId/chat', async (req: Request, res: Response) => {
   try {
     const messages = await agentService.getChatMessages(Number(req.params.id), req.params.agentId)
-    res.json({ success: true, data: messages })
+    res.json(ok(messages))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -121,19 +122,19 @@ router.post('/:id/agents/:agentId/chat', async (req: Request, res: Response) => 
       }
     }
 
-    res.json({ success: true, data: { message: agentMessage } })
+    res.json(ok({ message: agentMessage }))
   } catch (error) {
     console.error('Chat error:', error)
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
 router.get('/:id/deliverables', async (req: Request, res: Response) => {
   try {
     const deliverables = await deliverableService.getProjectDeliverables(Number(req.params.id))
-    res.json({ success: true, data: deliverables })
+    res.json(ok(deliverables))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -149,9 +150,9 @@ router.get('/:id/group-chat', async (req: Request, res: Response) => {
       WHERE cm.project_id = ? AND (cm.chat_type IS NULL OR cm.chat_type = 'group')
       ORDER BY cm.created_at ASC
     `, [Number(req.params.id)])
-    res.json({ success: true, data: messages })
+    res.json(ok(messages))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -231,10 +232,10 @@ router.post('/:id/group-chat', async (req: Request, res: Response) => {
       }
     }
 
-    res.json({ success: true, data: { sentMessage, replies } })
+    res.json(ok({ sentMessage, replies }))
   } catch (error) {
     console.error('Group chat error:', error)
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 

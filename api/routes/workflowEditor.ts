@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import * as workflowEditorService from '../services/workflowEditorService.js'
+import { ok, created, notFound, badRequest, serverError } from '../utils/apiResponse.js'
 
 const router = Router({ mergeParams: true })
 
@@ -8,9 +9,9 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const workflow = await workflowEditorService.getWorkflow(projectId)
-    res.json({ success: true, data: workflow })
+    res.json(ok(workflow))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -20,9 +21,9 @@ router.post('/', async (req: Request, res: Response) => {
     const projectId = Number(req.params.projectId)
     const { nodes, edges } = req.body
     const workflow = await workflowEditorService.saveWorkflow(projectId, nodes || [], edges || [])
-    res.json({ success: true, data: workflow })
+    res.json(ok(workflow))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -31,9 +32,9 @@ router.get('/next/:agentId', async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const nextAgents = await workflowEditorService.getNextAgents(projectId, req.params.agentId)
-    res.json({ success: true, data: nextAgents })
+    res.json(ok(nextAgents))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -42,9 +43,9 @@ router.get('/description', async (req: Request, res: Response) => {
   try {
     const projectId = Number(req.params.projectId)
     const desc = await workflowEditorService.getWorkflowDescription(projectId)
-    res.json({ success: true, data: desc })
+    res.json(ok(desc))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 

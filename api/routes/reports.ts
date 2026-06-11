@@ -1,14 +1,15 @@
 import { Router, Request, Response } from 'express'
 import * as reportService from '../services/reportService.js'
+import { ok, created, notFound, badRequest, serverError } from '../utils/apiResponse.js'
 
 const router = Router()
 
 router.get('/project/:projectId', async (req: Request, res: Response) => {
   try {
     const reports = await reportService.getProjectReports(Number(req.params.projectId))
-    res.json({ success: true, data: reports })
+    res.json(ok(reports))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 
@@ -22,9 +23,9 @@ router.post('/project/:projectId', async (req: Request, res: Response) => {
       JSON.stringify(risks || []),
       JSON.stringify(pendingApprovals || [])
     )
-    res.json({ success: true, data: report })
+    res.json(ok(report))
   } catch (error) {
-    res.status(500).json({ success: false, error: (error as Error).message })
+    res.status(500).json(serverError((error as Error).message))
   }
 })
 

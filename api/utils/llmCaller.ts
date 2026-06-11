@@ -1,3 +1,9 @@
+/**
+ * LLM 调用器 — 模板方法模式
+ * 
+ * 消除各 provider 的重复代码，统一请求构造、错误处理、超时重试。
+ */
+
 import axios from 'axios'
 
 interface ModelConfig {
@@ -7,166 +13,152 @@ interface ModelConfig {
   api_key: string
 }
 
+interface ProviderTemplate {
+  endpoint: string
+  buildBody: (model: ModelConfig, messages: any[]) => object
+  buildHeaders: (model: ModelConfig) => Record<string, string>
+  extractContent: (data: any) => string
+}
+
+// === Provider 注册表 ===
+const providers: Record<string, ProviderTemplate> = {
+  openai: {
+    endpoint: '/chat/completions',
+    buildBody: (m, msgs) => ({ model: m.model_name, messages: msgs, temperature: 0.7 }),
+    buildHeaders: (m) => ({ Authorization: `Bearer ${m.api_key}`, 'Content-Type': 'application/json' }),
+    extractContent: (d) => d.choices[0].message.content,
+  },
+  deepseek: {
+    endpoint: '/chat/completions',
+    buildBody: (m, msgs) => ({ model: m.model_name, messages: msgs, temperature: 0.7 }),
+    buildHeaders: (m) => ({ Authorization: `Bearer ${m.api_key}`, 'Content-Type': 'application/json' }),
+    extractContent: (d) => d.choices[0].message.content,
+  },
+  zhipu: {
+    endpoint: '/chat/completions',
+    buildBody: (m, msgs) => ({ model: m.model_name, messages: msgs }),
+    buildHeaders: (m) => ({ Authorization: m.api_key, 'Content-Type': 'application/json' }),
+    extractContent: (d) => d.choices[0].message.content,
+  },
+  moonshot: {
+    endpoint: '/chat/completions',
+    buildBody: (m, msgs) => ({ model: m.model_name, messages: msgs, temperature: 0.7 }),
+    buildHeaders: (m) => ({ Authorization: `Bearer ${m.api_key}`, 'Content-Type': 'application/json' }),
+    extractContent: (d) => d.choices[0].message.content,
+  },
+  qwen: {
+    endpoint: '/chat/completions',
+    buildBody: (m, msgs) => ({ model: m.model_name, messages: msgs, temperature: 0.7 }),
+    buildHeaders: (m) => ({ Authorization: `Bearer ${m.api_key}`, 'Content-Type': 'application/json' }),
+    extractContent: (d) => d.choices[0].message.content,
+  },
+  anthropic: {
+    endpoint: '/messages',
+    buildBody: (m, msgs) => ({
+      model: m.model_name,
+      max_tokens: 4096,
+      messages: msgs.filter((msg: any) => msg.role !== 'system'),
+      ...(msgs.some((msg: any) => msg.role === 'system') && {
+        system: msgs.find((msg: any) => msg.role === 'system')?.content
+      }),
+    }),
+    buildHeaders: (m) => ({
+      'x-api-key': m.api_key,
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+    }),
+    extractContent: (d) => d.content[0].text,
+  },
+  custom: {
+    endpoint: '/chat/completions',
+    buildBody: (m, msgs) => ({ model: m.model_name, messages: msgs, temperature: 0.7 }),
+    buildHeaders: (m) => ({ Authorization: `Bearer ${m.api_key}`, 'Content-Type': 'application/json' }),
+    extractContent: (d) => d.choices[0].message.content,
+  },
+}
+
+/**
+ * 统一 LLM 调用入口
+ */
 export async function callExternalLLM(
   model: ModelConfig,
   systemPrompt: string,
   userMessage: string,
   context: any
 ): Promise<string> {
-  const fullPrompt = `${systemPrompt}\n\n项目上下文：${JSON.stringify(context, null, 2)}\n\n用户消息：${userMessage}`
+  const provider = providers[model.provider]
+  if (!provider) throw new Error(`Unsupported provider: ${model.provider}`)
 
-  switch (model.provider) {
-    case 'openai':
-      return callOpenAI(model, fullPrompt)
-    case 'anthropic':
-      return callAnthropic(model, fullPrompt)
-    case 'deepseek':
-      return callDeepSeek(model, fullPrompt)
-    case 'zhipu':
-      return callZhipu(model, fullPrompt)
-    case 'moonshot':
-      return callMoonshot(model, fullPrompt)
-    case 'qwen':
-      return callQwen(model, fullPrompt)
-    case 'custom':
-      return callOpenAICompatible(model, fullPrompt)
-    default:
-      throw new Error(`Unsupported provider: ${model.provider}`)
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `项目上下文：${JSON.stringify(context, null, 2)}\n\n用户消息：${userMessage}` },
+  ]
+
+  return callWithTemplate(model, provider, messages)
+}
+
+/**
+ * 模板方法：统一请求 → 提取 → 错误处理
+ */
+async function callWithTemplate(
+  model: ModelConfig,
+  tpl: ProviderTemplate,
+  messages: any[]
+): Promise<string> {
+  const url = `${model.api_base}${tpl.endpoint}`
+  const body = tpl.buildBody(model, messages)
+  const headers = tpl.buildHeaders(model)
+
+  let lastError: Error | null = null
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await axios.post(url, body, { headers, timeout: 120000 })
+      return tpl.extractContent(res.data)
+    } catch (e: any) {
+      lastError = e
+      if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
+    }
   }
+  throw lastError || new Error('LLM call failed')
 }
 
-async function callOpenAI(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/chat/completions`,
-    {
-      model: model.model_name,
-      messages: [
-        { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${model.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  )
-  return res.data.choices[0].message.content
-}
+/**
+ * 流式调用（用于实时输出）
+ */
+export async function* callExternalLLMStream(
+  model: ModelConfig,
+  systemPrompt: string,
+  userMessage: string,
+  context: any
+): AsyncGenerator<string> {
+  const provider = providers[model.provider]
+  if (!provider) throw new Error(`Unsupported provider: ${model.provider}`)
 
-async function callAnthropic(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/messages`,
-    {
-      model: model.model_name,
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    },
-    {
-      headers: {
-        'x-api-key': model.api_key,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-      },
-      timeout: 60000,
-    }
-  )
-  return res.data.content[0].text
-}
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `项目上下文：${JSON.stringify(context, null, 2)}\n\n用户消息：${userMessage}` },
+  ]
 
-async function callDeepSeek(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/chat/completions`,
-    {
-      model: model.model_name,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${model.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  )
-  return res.data.choices[0].message.content
-}
+  const url = `${model.api_base}${provider.endpoint}`
+  const body = { ...provider.buildBody(model, messages), stream: true }
+  const headers = provider.buildHeaders(model)
 
-async function callZhipu(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/chat/completions`,
-    {
-      model: model.model_name,
-      messages: [{ role: 'user', content: prompt }],
-    },
-    {
-      headers: {
-        Authorization: `${model.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  )
-  return res.data.choices[0].message.content
-}
+  const res = await axios.post(url, body, {
+    headers,
+    timeout: 120000,
+    responseType: 'stream',
+  })
 
-async function callMoonshot(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/chat/completions`,
-    {
-      model: model.model_name,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${model.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
+  for await (const chunk of res.data) {
+    const lines = chunk.toString().split('\n').filter((l: string) => l.startsWith('data: '))
+    for (const line of lines) {
+      const data = line.slice(6)
+      if (data === '[DONE]') return
+      try {
+        const parsed = JSON.parse(data)
+        const content = provider.extractContent(parsed)
+        if (content) yield content
+      } catch {}
     }
-  )
-  return res.data.choices[0].message.content
-}
-
-async function callQwen(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/chat/completions`,
-    {
-      model: model.model_name,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${model.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  )
-  return res.data.choices[0].message.content
-}
-
-async function callOpenAICompatible(model: ModelConfig, prompt: string): Promise<string> {
-  const res = await axios.post(
-    `${model.api_base}/chat/completions`,
-    {
-      model: model.model_name,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${model.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  )
-  return res.data.choices[0].message.content
+  }
 }
