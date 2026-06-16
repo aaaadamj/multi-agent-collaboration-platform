@@ -186,11 +186,3 @@ function generateMockReply(agentId: string, agentName: string, message: string, 
 
   return replies[agentId] || `我是${agentName}，已收到您的消息：「${message}」\n\n我正在基于当前项目上下文进行分析和处理...\n\n（当前使用模拟回复，您可以在Agent管理中配置真实的大模型API以获得更智能的回复）`
 }
-/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
-/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
-/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
-/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
-/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
-/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
-/usr/bin/bash: line 5: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-snap-066f421b7d5f.sh: No such file or directory
-/usr/bin/bash: line 6: C:/Users/huawei/AppData/Local/hermes/cache/terminal/hermes-cwd-066f421b7d5f.txt: No such file or directory
